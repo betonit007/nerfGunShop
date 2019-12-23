@@ -1,37 +1,17 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const usersRepo = require('./repos/users');
+const cookieSession = require('cookie-session') // middleware
+const authRouter = require('./routes/admin/auth');
 
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }))
 
+app.use(cookieSession({
+  keys: ['cnzvmsfsjkhsfdd33'] // a random string of chars - will add an additional property to req object (req.session)
+}))
 
-app.get('/', (req, res) => {
-    res.send(`
-      <div>
-        <form method='POST'>
-          <input name='email' placeholder='email'/>
-          <input name='password' placeholder='password'/>
-          <input name='passwordConfirmation' placeholder='password confirmation'/>
-          <button>Sign UP</button>
-        </form>
-      </div>
-    `);
-})
-
-app.post('/', async (req, res) => {
-    const { email, password, passwordConfirmation } = req.body;
-
-    const existingUser = await usersRepo.getOneBy({ email });
-    if (existingUser) {
-        return res.send("email in use")
-    }
-    if (password !== passwordConfirmation) {
-        return res.send("Passwords must match");
-    }
-    res.send('Account Created');
-})
+app.use(authRouter);
 
 app.listen(3001, () => {
     console.log('Listening')

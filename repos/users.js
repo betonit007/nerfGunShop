@@ -1,5 +1,8 @@
 const fs = require('fs');
 const crypto = require('crypto');
+const util = require('util');
+
+const scrypt = util.promisify(crypto.scrypt) // now scrypt is a version of scrypt that returns a promise
 
 class UsersRepo {
     constructor(filename) {
@@ -20,12 +23,33 @@ class UsersRepo {
     }
 
     async create(attrs) {
-      attrs.id = this.randomId();
+        attrs.id = this.randomId();
 
-      const records = await this.getAll();
-      records.push(attrs);
+        const salt = crypto.randomBytes(8).toString('hex');// generate salt, 8 - number of bytes
 
-      await fs.promises.writeFile(this.filename, JSON.stringify(records));
+        const buf = await scrypt(attrs.password, salt, 64); //passing in password and salt we just generated, and key length of 64
+
+        const records = await this.getAll();
+        const record = ({
+            ...attrs,
+            password: `${buf.toString('hex')}.${salt}` //we're saving the 'hashed password' and salt, seperated by '.',  so we can decode later
+        });
+        records.push(record);
+
+        await this.writeAll(records);
+
+        return record; // returns hash and salted password.
+    }
+
+    async comparePasswords(saved, supplied) {
+        
+        const [ hashed, salt ] = saved.split('.'); //This is same as this:   const result = saved.split('.');
+                                                                        //   const hashed = result[0];
+                                                                        //   const salt = result[1];
+
+        const hashedSupplied = await scrypt(supplied, salt, 64);
+        
+        return hashed === hashedSupplied.toString('hex');
     }
 
     async writeAll(records) {
@@ -61,13 +85,13 @@ class UsersRepo {
     async getOneBy(filter) {
         const records = await this.getAll();
 
-        for(let record of records) { //iterating thru an array - for of
+        for (let record of records) { //iterating thru an array - for of
             let found = true;
 
             for (let key in filter) { // iterating thru an object = for in
-              if (record[key] !== filter[key]) {
-                  found = false;
-              }
+                if (record[key] !== filter[key]) {
+                    found = false;
+                }
             }
 
             if (found) {
