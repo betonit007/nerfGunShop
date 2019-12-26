@@ -2,9 +2,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cookieSession = require('cookie-session') // middleware
 const authRouter = require('./routes/admin/auth');
+const productsRouter = require('./routes/admin/products');
 
 const app = express();
 
+app.use(express.static('public')); //checks all request to see if any of the requests made include any files from the public folder
 app.use(bodyParser.urlencoded({ extended: true }))
 
 app.use(cookieSession({
@@ -12,6 +14,7 @@ app.use(cookieSession({
 }))
 
 app.use(authRouter);
+app.use(productsRouter);
 
 app.listen(3001, () => {
     console.log('Listening')

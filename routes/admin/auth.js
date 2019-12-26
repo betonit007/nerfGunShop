@@ -3,7 +3,7 @@ const { check, validationResult } = require('express-validator');
 const usersRepo = require('../../repos/users');
 const signupTemplate = require('../../view/admin/auth/signup');
 const signInTemplate = require('../../view/admin/auth/signin');
-const { requireEmail, requirePassword, requirePasswordConfirmation } = require('./validators');
+const { requireEmail, requirePassword, requirePasswordConfirmation, requireEmailExists, requireValidPasswordForUser } = require('./validators');
 const router = express.Router();
 
 
@@ -41,28 +41,24 @@ router.get('/signout', (req, res) => {
 
 
 router.get('/signin', (req, res) => {
-    res.send(signInTemplate());
+    res.send(signInTemplate({})); //pass in an empty object to avoid error since signInTemplate expects an object
 })
 
 
-router.post('/signin', async (req, res) => {
-    const { email, password } = req.body;
+router.post('/signin', [
+    requireEmailExists,
+    requireValidPasswordForUser
+    
+], async (req, res) => {
+    const errors = validationResult(req);
+    
+    if(!errors.isEmpty()) {
+      return res.send(signInTemplate({ errors }));
+    }
+
+    const { email } = req.body;
 
     const user = await usersRepo.getOneBy({ email });
-
-    if (!user) {
-        return res.send('Email not found');
-    }
-
-    const validPassword = await usersRepo.comparePasswords(
-        user.password,
-        password
-    )
-
-
-    if (!validPassword) {
-        return res.send('Invalid password');
-    }
 
     req.session.userId = user.id // Assigning user id to cookie
 
